@@ -90,6 +90,8 @@ def get_vacancies_hh(url, vacancies, params):
     for language in vacancies.keys():
         for vacancy in fetch_pages_hh(url, params, language):
             vacancies_found = vacancies[language]["vacancies_found"] + 1
+            vacancies_processed = vacancies[language]["vacancies_processed"]
+            average_salary = vacancies[language]['average_salary'] 
             rub_salary_hh = predict_rub_salary_hh(vacancy)
             if rub_salary_hh:
                 vacancies_processed = vacancies[language]["vacancies_processed"] + 1
@@ -103,6 +105,8 @@ def get_vacancies_sj(url, vacancies, token):
     for language in vacancies.keys():
         for vacancy in fetch_pages_sj(url, language, token):
             vacancies_found = vacancies[language]["vacancies_found"] + 1
+            vacancies_processed = vacancies[language]["vacancies_processed"]
+            average_salary = vacancies[language]['average_salary'] 
             rub_salary_sj = predict_rub_salary_sj(vacancy)
             if rub_salary_sj:
                 vacancies_processed = vacancies[language]["vacancies_processed"] + 1

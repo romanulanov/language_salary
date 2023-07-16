@@ -1,3 +1,4 @@
+from time import sleep
 import requests
 from itertools import count
 from environs import Env
@@ -6,6 +7,9 @@ from terminaltables import AsciiTable
 
 HH_URL = 'https://api.hh.ru/vacancies'
 SJ_URL = 'https://api.superjob.ru/2.20/vacancies/'
+NUMBER_OF_PAGES = 100
+AREA_ID = 1
+PROFESSION_ID = 48
 
 
 def predict_salary(salary_from, salary_to):
@@ -30,38 +34,35 @@ def predict_rub_salary_sj(vacancy):
 
 
 def fetch_pages_sj(url, language, sj_token):
-    page_response = requests.get(url, params={
-        "keyword": language,
-        "catalogues": 48,
-        "town": "Москва",
-        "period": 0,
-        "page": 0, "count": 100},
-        headers={"X-Api-App-Id": sj_token})
-    page_response.raise_for_status()
-    page_payload = page_response.json()
-    page = 0
-    yield from page_payload['objects']
-    while page_payload["more"] == 'True':
-        page += 1
-        page_payload = requests.get(url, params={
-        "keyword": language,
-        "catalogues": 48,
-        "town": "Москва",
-        "period": 0,
-        "page": 0, "count": 100},
-        headers={"X-Api-App-Id": sj_token})
-        page_payload = page_response.json()
-        yield from page_payload['objects']
+    for page in count(0):
+        try:
+            page_response = requests.get(url, 
+            params={
+            "catalogues": PROFESSION_ID,
+            "town": { "id": AREA_ID, "title":"Москва"},
+            "page": page,
+            "count": NUMBER_OF_PAGES,
+            "profession": language
+            },
+            headers={"X-Api-App-Id": sj_token},
+            )
+            page_response.raise_for_status()
+            page_payload = page_response.json()
+            yield from page_payload['objects']
+            if not(page_payload["more"]):
+                break
+        except requests.ReadTimeout:
+            continue
 
 
 def fetch_pages_hh(url, params, language):
     for page in count(0):
-        page_response = requests.get(url, params={**params, **{"page": page, 'text': language}})
+        page_response = requests.get(url, params={**params, **{"page": page, 'name': language}})
         page_response.raise_for_status()
         page_payload = page_response.json()
-        yield from page_payload['items']
         if page >= page_payload["pages"] - 1:
             break
+        yield from page_payload['items']
 
 
 def create_vacancies():
@@ -73,11 +74,10 @@ def create_vacancies():
 
 def calculate_salary(vacancies):
     for language in vacancies:
-        if vacancies[language]["vacancies_processed"] != 0:
+        if (vacancies[language]["vacancies_processed"]):
             vacancies[language]['average_salary'] = int(vacancies[language]['average_salary'] / vacancies[language]["vacancies_processed"])
-    vacancies_with_salary = vacancies 
-    return vacancies_with_salary
-
+    vacancies_with_calculating_salary = vacancies
+    return vacancies_with_calculating_salary
 
 
 def create_table(vacancies):
@@ -89,14 +89,11 @@ def create_table(vacancies):
 def get_vacancies_hh(url, vacancies, params):
     for language in vacancies.keys():
         for vacancy in fetch_pages_hh(url, params, language):
-            if language.lower() in vacancy['name'].lower():
-                #vacancies = {vacancies[language]["vacancies_found"]: vacancies[language]["vacancies_found"] + 1,  }
-
-                vacancies[language]["vacancies_found"] += 1
-                rub_salary_hh = predict_rub_salary_hh(vacancy)
-                if rub_salary_hh:
-                    vacancies[language]["vacancies_processed"] += 1
-                    vacancies[language]['average_salary'] += rub_salary_hh
+            vacancies[language]["vacancies_found"] += 1
+            rub_salary_hh = predict_rub_salary_hh(vacancy)
+            if rub_salary_hh:
+                vacancies[language]["vacancies_processed"] += 1
+                vacancies[language]['average_salary'] += rub_salary_hh
     vacancies_hh = calculate_salary(vacancies)
     return vacancies_hh
 
@@ -104,12 +101,11 @@ def get_vacancies_hh(url, vacancies, params):
 def get_vacancies_sj(url, vacancies, token):
     for language in vacancies.keys():
         for vacancy in fetch_pages_sj(url, language, token):
-            if language.lower() in vacancy["profession"].lower():
-                vacancies[language]["vacancies_found"] += 1
-                rub_salary_sj = predict_rub_salary_sj(vacancy)
-                if rub_salary_sj:
-                    vacancies[language]["vacancies_processed"] += 1
-                    vacancies[language]['average_salary'] += rub_salary_sj
+            vacancies[language]["vacancies_found"] += 1
+            rub_salary_sj = predict_rub_salary_sj(vacancy)
+            if rub_salary_sj:
+                vacancies[language]["vacancies_processed"] += 1
+                vacancies[language]['average_salary'] += rub_salary_sj
     vacancies_sj = calculate_salary(vacancies)
     return vacancies_sj
 
@@ -124,11 +120,12 @@ def main():
     env = Env()
     env.read_env()
     sj_token = env("SJ_TOKEN")
-    hh_params = {'area': "1", "per_page": 100}
+    hh_params = {'area': AREA_ID, "per_page": NUMBER_OF_PAGES}
     sj_vacancies, hh_vacancies = create_vacancies(), create_vacancies()
     hh_vacancies = get_vacancies_hh(HH_URL, hh_vacancies, hh_params)
     sj_vacancies = get_vacancies_sj(SJ_URL, sj_vacancies, sj_token)
-    hh_table, sj_table = create_table(hh_vacancies), create_table(sj_vacancies)
+    hh_table = create_table(hh_vacancies)
+    sj_table = create_table(sj_vacancies)
     print_table((hh_table), 'HeadHunter')
     print_table((sj_table), 'SuperJob')
 

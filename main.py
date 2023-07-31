@@ -7,7 +7,7 @@ from terminaltables import AsciiTable
 
 HH_URL = 'https://api.hh.ru/vacancies'
 SJ_URL = 'https://api.superjob.ru/2.20/vacancies/'
-NUMBER_OF_PAGES = 100
+PAGES_NUMBER = 100
 AREA_ID = 1
 PROFESSION_ID = 48
 
@@ -41,7 +41,7 @@ def fetch_pages_sj(url, language, sj_token):
             "catalogues": PROFESSION_ID,
             "town": { "id": AREA_ID, "title":"Москва"},
             "page": page,
-            "count": NUMBER_OF_PAGES,
+            "count": PAGES_NUMBER,
             "profession": language
             },
             headers={"X-Api-App-Id": sj_token},
@@ -126,7 +126,7 @@ def main():
     env = Env()
     env.read_env()
     sj_token = env("SJ_TOKEN")
-    hh_params = {'area': AREA_ID, "per_page": NUMBER_OF_PAGES}
+    hh_params = {'area': AREA_ID, "per_page": PAGES_NUMBER}
     sj_vacancies, hh_vacancies = create_vacancies(), create_vacancies()
     hh_vacancies = get_vacancies_hh(HH_URL, hh_vacancies, hh_params)
     sj_vacancies = get_vacancies_sj(SJ_URL, sj_vacancies, sj_token)

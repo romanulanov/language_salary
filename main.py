@@ -127,7 +127,6 @@ def main():
     env.read_env()
     sj_token = env("SJ_TOKEN")
     hh_params = {'area': AREA_ID, "per_page": PAGES_NUMBER}
-    sj_vacancies, hh_vacancies = create_vacancies(), create_vacancies()
     hh_vacancies = get_vacancies_hh(HH_URL, hh_vacancies, hh_params)
     sj_vacancies = get_vacancies_sj(SJ_URL, sj_vacancies, sj_token)
     hh_table = create_table(hh_vacancies)

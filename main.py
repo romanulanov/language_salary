@@ -1,3 +1,4 @@
+from statistics import mean
 from time import sleep
 import requests
 from itertools import count
@@ -7,9 +8,10 @@ from terminaltables import AsciiTable
 
 HH_URL = 'https://api.hh.ru/vacancies'
 SJ_URL = 'https://api.superjob.ru/2.20/vacancies/'
-PAGES_NUMBER = 100
-AREA_ID = 1
+VACANCIES_PER_PAGE = 20
 PROFESSION_ID = 48
+CITY_ID = 4
+VACANCIES_NUMBER_LIMIT = 1000
 
 
 def predict_salary(salary_from, salary_to):
@@ -33,36 +35,78 @@ def predict_rub_salary_sj(vacancy):
         return predict_salary(vacancy["payment_from"], vacancy["payment_to"])
 
 
-def fetch_pages_sj(url, language, sj_token):
-    for page in count(0):
-        try:
-            page_response = requests.get(url, 
-            params={
-            "catalogues": PROFESSION_ID,
-            "town": { "id": AREA_ID, "title":"Москва"},
-            "page": page,
-            "count": PAGES_NUMBER,
-            "profession": language
-            },
-            headers={"X-Api-App-Id": sj_token},
+def fetch_pages_sj(languages, superjob_key):
+    headers = {"X-Api-App-Id": superjob_key}
+    vacancies = {}
+
+    for language in languages:
+        vacancies[language] = []
+        page_number = 1
+        page = 0
+        while page < page_number:
+            params = {
+                "town": CITY_ID,
+                "catalogues": PROFESSION_ID,
+                "keyword": language,
+                "page": page,
+                "count": VACANCIES_PER_PAGE
+            }
+            
+            page_response = requests.get(
+                "https://api.superjob.ru/2.0/vacancies/",
+                headers=headers,
+                params=params,
             )
             page_response.raise_for_status()
+
             page_payload = page_response.json()
-            yield from page_payload['objects']
-            if not(page_payload["more"]):
-                break
-        except requests.ReadTimeout:
-            continue
+            if page_payload["total"] > VACANCIES_NUMBER_LIMIT:
+                page_number = VACANCIES_NUMBER_LIMIT // VACANCIES_PER_PAGE
+            elif page_payload["total"] < VACANCIES_PER_PAGE:
+                page_number = 1
+            else:
+                page_number = page_payload["total"] // VACANCIES_PER_PAGE
+            page += 1
+
+            page_vacancies = page_payload["objects"]
+            for vacancy in page_vacancies:
+                vacancies[language].append(vacancy)
+            
+    return vacancies
 
 
-def fetch_pages_hh(url, params, language):
-    for page in count(0):
-        page_response = requests.get(url, params={**params, **{"page": page, 'name': language}})
-        page_response.raise_for_status()
-        page_payload = page_response.json()
-        if page >= page_payload["pages"] - 1:
-            break
-        yield from page_payload['items']
+def fetch_pages_hh(languages):
+    vacancies = {}
+    profession_id = 96
+    city_id = 1
+    days = 30
+    for language in languages:
+        vacancies[language] = []
+        page_number = 1
+        page = 0
+        while page < page_number:
+            params = {
+                "professional_role": profession_id,
+                "area": city_id,
+                "period": days,
+                "text": language,
+                "search_field": "name",
+                "page": page
+            }
+            
+            page_response = requests.get(
+                "https://api.hh.ru/vacancies", params=params
+            )
+            page_response.raise_for_status()
+
+            page_payload = page_response.json()
+            page_number = page_payload["pages"]
+            page += 1
+
+            page_vacancies = page_payload["items"]
+            vacancies[language].extend(page_vacancies)
+            
+    return vacancies
 
 
 def create_vacancies():
@@ -86,34 +130,44 @@ def create_table(vacancies):
     return table
 
 
-def get_vacancies_hh(url, vacancies, params):
-    for language in vacancies.keys():
-        for vacancy in fetch_pages_hh(url, params, language):
-            vacancies_found = vacancies[language]["vacancies_found"] + 1
-            vacancies_processed = vacancies[language]["vacancies_processed"]
-            average_salary = vacancies[language]['average_salary'] 
-            rub_salary_hh = predict_rub_salary_hh(vacancy)
-            if rub_salary_hh:
-                vacancies_processed = vacancies[language]["vacancies_processed"] + 1
-                average_salary = vacancies[language]['average_salary'] + rub_salary_hh
-            vacancies[language] = {"vacancies_found": vacancies_found, "vacancies_processed": vacancies_processed, "average_salary": average_salary}
-    vacancies_hh = calculate_salary(vacancies)
-    return vacancies_hh
+def get_vacancies_statistic_hh(vacancies):
+    vacancies_statistic = {}
+    for language in vacancies:
+        salaries = []
+        for vacancy in vacancies[language]:
+            salary = predict_rub_salary_hh(vacancy)
+            if salary:
+                salaries.append(salary)
+        if not salaries:
+            average_salary = 0
+        else:
+            average_salary = int(mean(salaries))
+        vacancies_statistic[language] = {
+            "vacancies_found": len(vacancies[language]),
+            "vacancies_processed": len(salaries),
+            "average_salary": average_salary,
+        }
+    return vacancies_statistic
 
 
-def get_vacancies_sj(url, vacancies, token):
-    for language in vacancies.keys():
-        for vacancy in fetch_pages_sj(url, language, token):
-            vacancies_found = vacancies[language]["vacancies_found"] + 1
-            vacancies_processed = vacancies[language]["vacancies_processed"]
-            average_salary = vacancies[language]['average_salary'] 
-            rub_salary_sj = predict_rub_salary_sj(vacancy)
-            if rub_salary_sj:
-                vacancies_processed = vacancies[language]["vacancies_processed"] + 1
-                average_salary = vacancies[language]['average_salary'] + rub_salary_sj
-            vacancies[language] = {"vacancies_found": vacancies_found, "vacancies_processed": vacancies_processed, "average_salary": average_salary}
-    vacancies_sj = calculate_salary(vacancies)
-    return vacancies_sj
+def get_vacancies_statistic_sj(vacancies):
+    vacancies_statistic = {}
+    for language in vacancies:
+        salaries = []
+        for vacancy in vacancies[language]:
+            salary = predict_rub_salary_sj(vacancy)
+            if salary:
+                salaries.append(salary)
+        if not salaries:
+            average_salary = 0
+        else:
+            average_salary = int(mean(salaries))
+        vacancies_statistic[language] = {
+            "vacancies_found": len(vacancies[language]),
+            "vacancies_processed": len(salaries),
+            "average_salary": average_salary,
+        }
+    return vacancies_statistic
 
 
 def print_table(table, title):
@@ -126,9 +180,13 @@ def main():
     env = Env()
     env.read_env()
     sj_token = env("SJ_TOKEN")
-    hh_params = {'area': AREA_ID, "per_page": PAGES_NUMBER}
-    hh_vacancies = get_vacancies_hh(HH_URL, hh_vacancies, hh_params)
-    sj_vacancies = get_vacancies_sj(SJ_URL, sj_vacancies, sj_token)
+    languages = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'C#', 'C', 'Go', 'Shell']
+    
+    hh_vacancies = fetch_pages_hh(create_vacancies())
+    hh_vacancies = get_vacancies_statistic_hh(hh_vacancies)
+    sj_vacancies = fetch_pages_sj(languages, sj_token)
+    sj_vacancies = get_vacancies_statistic_sj(sj_vacancies)
+    
     hh_table = create_table(hh_vacancies)
     sj_table = create_table(sj_vacancies)
     print_table((hh_table), 'HeadHunter')

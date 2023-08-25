@@ -9,20 +9,22 @@ from terminaltables import AsciiTable
 HH_URL = 'https://api.hh.ru/vacancies'
 SJ_URL = 'https://api.superjob.ru/2.20/vacancies/'
 VACANCIES_PER_PAGE = 20
-PROFESSION_ID = 48
-CITY_ID = 4
+PROFESSION_ID_SJ = 48
+PROFESSION_ID_HH = 96
+CITY_ID_SJ = 4
+CITY_ID_HH = 4
 VACANCIES_NUMBER_LIMIT = 1000
 
 
 def predict_salary(salary_from, salary_to):
-    if (not(salary_from) and not(salary_to)) or (not(salary_from) and not(salary_to)):
+    if (not salary_from and not salary_to) or (not salary_from and not salary_to):
         return None
-    elif not(salary_from) or not(salary_from):
+    elif not salary_from or not salary_from:
         return salary_to * 0.8
-    elif not(salary_to) or not(salary_to):
+    elif not salary_to or not salary_to:
         return salary_from * 1.2
     else:
-        return (salary_from + salary_to) / 2
+        return salary_from / 2 + salary_to / 2
 
 
 def predict_rub_salary_hh(vacancy):
@@ -45,8 +47,8 @@ def fetch_pages_sj(languages, superjob_key):
         page = 0
         while page < page_number:
             params = {
-                "town": CITY_ID,
-                "catalogues": PROFESSION_ID,
+                "town": CITY_ID_SJ,
+                "catalogues": PROFESSION_ID_SJ,
                 "keyword": language,
                 "page": page,
                 "count": VACANCIES_PER_PAGE
@@ -77,8 +79,6 @@ def fetch_pages_sj(languages, superjob_key):
 
 def fetch_pages_hh(languages):
     vacancies = {}
-    profession_id = 96
-    city_id = 1
     days = 30
     for language in languages:
         vacancies[language] = []
@@ -86,8 +86,8 @@ def fetch_pages_hh(languages):
         page = 0
         while page < page_number:
             params = {
-                "professional_role": profession_id,
-                "area": city_id,
+                "professional_role": PROFESSION_ID_HH,
+                "area": CITY_ID_HH,
                 "period": days,
                 "text": language,
                 "search_field": "name",
@@ -106,13 +106,6 @@ def fetch_pages_hh(languages):
             page_vacancies = page_payload["items"]
             vacancies[language].extend(page_vacancies)
             
-    return vacancies
-
-
-def create_vacancies():
-    languages, vacancies = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'C#', 'C', 'Go', 'Shell'], {}
-    for language in languages:
-        vacancies[language], vacancies[language]['vacancies_found'], vacancies[language]["vacancies_processed"], vacancies[language]['average_salary'] = {}, 0, 0, 0
     return vacancies
 
 
@@ -182,15 +175,15 @@ def main():
     sj_token = env("SJ_TOKEN")
     languages = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'C#', 'C', 'Go', 'Shell']
     
-    hh_vacancies = fetch_pages_hh(create_vacancies())
+    hh_vacancies = fetch_pages_hh(languages)
     hh_vacancies = get_vacancies_statistic_hh(hh_vacancies)
-    sj_vacancies = fetch_pages_sj(languages, sj_token)
-    sj_vacancies = get_vacancies_statistic_sj(sj_vacancies)
+    #sj_vacancies = fetch_pages_sj(languages, sj_token)
+    #sj_vacancies = get_vacancies_statistic_sj(sj_vacancies)
     
     hh_table = create_table(hh_vacancies)
-    sj_table = create_table(sj_vacancies)
+    #sj_table = create_table(sj_vacancies)
     print_table((hh_table), 'HeadHunter')
-    print_table((sj_table), 'SuperJob')
+    #print_table((sj_table), 'SuperJob')
 
 
 if __name__ == "__main__":

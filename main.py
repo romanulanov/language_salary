@@ -176,14 +176,18 @@ def main():
     languages = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'C#', 'C', 'Go', 'Shell']
     
     hh_vacancies = fetch_pages_hh(languages)
-    hh_vacancies = get_vacancies_statistic_hh(hh_vacancies)
-    #sj_vacancies = fetch_pages_sj(languages, sj_token)
-    #sj_vacancies = get_vacancies_statistic_sj(sj_vacancies)
+    hh_vacancies_statistic = get_vacancies_statistic_hh(hh_vacancies)
+    sj_vacancies = fetch_pages_sj(languages, sj_token)
+    sj_vacancies_statistic = get_vacancies_statistic_sj(sj_vacancies)
+
+    hh_table = AsciiTable(hh_vacancies_statistic, 'HeadHunter')
+    hh_table.all_columns = 'left'
+    print(hh_table.table)
     
-    hh_table = create_table(hh_vacancies)
-    #sj_table = create_table(sj_vacancies)
-    print_table((hh_table), 'HeadHunter')
-    #print_table((sj_table), 'SuperJob')
+    sj_table = AsciiTable(sj_vacancies_statistic, 'SuperJob')
+    sj_table.all_columns = 'left'
+    print(sj_table.table)
+    
 
 
 if __name__ == "__main__":

@@ -71,8 +71,7 @@ def fetch_pages_sj(languages, superjob_key):
             page += 1
 
             page_vacancies = page_payload["objects"]
-            for vacancy in page_vacancies:
-                vacancies[language].append(vacancy)
+            vacancies[language].extend(page_vacancies)
             
     return vacancies
 
@@ -179,15 +178,17 @@ def main():
     hh_vacancies_statistic = get_vacancies_statistic_hh(hh_vacancies)
     sj_vacancies = fetch_pages_sj(languages, sj_token)
     sj_vacancies_statistic = get_vacancies_statistic_sj(sj_vacancies)
-
-    hh_table = AsciiTable(hh_vacancies_statistic, 'HeadHunter')
+    
+    hh_table = AsciiTable(create_table(hh_vacancies_statistic), 'HeadHunter Moscow')
     hh_table.all_columns = 'left'
     print(hh_table.table)
     
-    sj_table = AsciiTable(sj_vacancies_statistic, 'SuperJob')
+    sj_table = AsciiTable(create_table(sj_vacancies_statistic), 'SuperJob Moscow')
     sj_table.all_columns = 'left'
     print(sj_table.table)
+
     
+
 
 
 if __name__ == "__main__":

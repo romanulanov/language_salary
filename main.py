@@ -126,18 +126,16 @@ def create_table(vacancies, title):
 
 def get_vacancies_statistic_hh(vacancies):
     vacancies_statistic = {}
-    for language in vacancies:
-        salaries = []
-        for vacancy in vacancies[language]:
-            salary = predict_rub_salary_hh(vacancy)
-            if salary:
-                salaries.append(salary)
+    
+
+    for language, vacancies in vacancies.items():
+        salaries = [predict_rub_salary_hh(vacancy) for vacancy in vacancies if predict_rub_salary_hh(vacancy)]
         if not salaries:
             average_salary = 0
         else:
             average_salary = int(mean(salaries))
         vacancies_statistic[language] = {
-            "vacancies_found": len(vacancies[language]),
+            "vacancies_found": len(vacancies),
             "vacancies_processed": len(salaries),
             "average_salary": average_salary,
         }
@@ -146,28 +144,18 @@ def get_vacancies_statistic_hh(vacancies):
 
 def get_vacancies_statistic_sj(vacancies):
     vacancies_statistic = {}
-    for language in vacancies:
-        salaries = []
-        for vacancy in vacancies[language]:
-            salary = predict_rub_salary_sj(vacancy)
-            if salary:
-                salaries.append(salary)
+    for language, vacancies in vacancies.items():
+        salaries = [predict_rub_salary_sj(vacancy) for vacancy in vacancies if predict_rub_salary_sj(vacancy)]
         if not salaries:
             average_salary = 0
         else:
             average_salary = int(mean(salaries))
         vacancies_statistic[language] = {
-            "vacancies_found": len(vacancies[language]),
+            "vacancies_found": len(vacancies),
             "vacancies_processed": len(salaries),
             "average_salary": average_salary,
         }
     return vacancies_statistic
-
-
-def print_table(table, title):
-    table_instance = AsciiTable(table, title)
-    table_instance.all_columns = 'left'
-    print(table_instance.table)
 
 
 def main():
@@ -177,6 +165,7 @@ def main():
     languages = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'C#', 'C', 'Go', 'Shell']
     
     hh_vacancies = fetch_pages_hh(languages)
+    
     hh_vacancies_statistic = get_vacancies_statistic_hh(hh_vacancies)
     sj_vacancies = fetch_pages_sj(languages, sj_token)
     sj_vacancies_statistic = get_vacancies_statistic_sj(sj_vacancies)

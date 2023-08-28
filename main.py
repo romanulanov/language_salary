@@ -116,9 +116,11 @@ def calculate_salary(vacancies):
     return vacancies_with_calculating_salary
 
 
-def create_table(vacancies):
+def create_table(vacancies, title):
     vacancies_table = [(tuple((language,) + tuple(vacancies[language].values()))) for language in vacancies]
     table = (('Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата'),) + tuple([vacancy for vacancy in vacancies_table])
+    table = AsciiTable(table, 'HeadHunter Moscow')
+    table.all_columns = 'left'
     return table
 
 
@@ -179,12 +181,9 @@ def main():
     sj_vacancies = fetch_pages_sj(languages, sj_token)
     sj_vacancies_statistic = get_vacancies_statistic_sj(sj_vacancies)
     
-    hh_table = AsciiTable(create_table(hh_vacancies_statistic), 'HeadHunter Moscow')
-    hh_table.all_columns = 'left'
+    hh_table = create_table(hh_vacancies_statistic, 'HeadHunter Moscow')
     print(hh_table.table)
-    
-    sj_table = AsciiTable(create_table(sj_vacancies_statistic), 'SuperJob Moscow')
-    sj_table.all_columns = 'left'
+    sj_table = create_table(sj_vacancies_statistic, 'SuperJob Moscow')
     print(sj_table.table)
 
     

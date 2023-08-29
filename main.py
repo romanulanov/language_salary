@@ -119,17 +119,21 @@ def calculate_salary(vacancies):
 def create_table(vacancies, title):
     vacancies_table = [(tuple((language,) + tuple(vacancies[language].values()))) for language in vacancies]
     table = (('Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата'),) + tuple([vacancy for vacancy in vacancies_table])
-    table = AsciiTable(table, 'HeadHunter Moscow')
+    table = AsciiTable(table, title)
     table.all_columns = 'left'
     return table
 
 
 def get_vacancies_statistic_hh(vacancies):
     vacancies_statistic = {}
-    
+    salaries = []
 
     for language, vacancies in vacancies.items():
-        salaries = [predict_rub_salary_hh(vacancy) for vacancy in vacancies if predict_rub_salary_hh(vacancy)]
+        for vacancy in vacancies:
+            rub_salary_hh = predict_rub_salary_hh(vacancy)
+            if rub_salary_hh:
+                salaries.append(rub_salary_hh)
+        
         if not salaries:
             average_salary = 0
         else:
@@ -143,9 +147,13 @@ def get_vacancies_statistic_hh(vacancies):
 
 
 def get_vacancies_statistic_sj(vacancies):
+    salaries = []
     vacancies_statistic = {}
     for language, vacancies in vacancies.items():
-        salaries = [predict_rub_salary_sj(vacancy) for vacancy in vacancies if predict_rub_salary_sj(vacancy)]
+        for vacancy in vacancies:
+            rub_salary_hh = predict_rub_salary_sj(vacancy)
+            if rub_salary_hh:
+                salaries.append(rub_salary_hh)
         if not salaries:
             average_salary = 0
         else:
